@@ -1,0 +1,49 @@
+{
+  "name": "opinion-clob-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for interacting with Opinion prediction markets via the CLOB (Central Limit Order Book) API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "keywords": [
+    "PredictionMarket",
+    "CLOB",
+    "Trading",
+    "Blockchain",
+    "BNBChain",
+    "BSC",
+    "Opinion",
+    "TypeScript"
+  ],
+  "author": "Opinion Labs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opinionlabs/opinion-typescript-sdk"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0",
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.3.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
