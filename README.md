@@ -155,6 +155,111 @@ const trades = await client.getMyTrades({
 const auth = await client.getUserAuth();
 ```
 
+### Smart Contract Operations
+
+The SDK provides direct blockchain interactions for position management:
+
+```typescript
+import { ethers } from "ethers";
+
+// Initialize client with blockchain capabilities
+const client = new Client({
+  host: "https://proxy.opinion.trade:8443",
+  apiKey: "your_api_key",
+  chainId: CHAIN_ID_BNB_MAINNET,
+  rpcUrl: "https://bsc-dataseed.binance.org/",
+  privateKey: "your_private_key", // Required for blockchain operations
+  multiSigAddr: "your_multi_sig_address", // Required for blockchain operations
+});
+
+// Enable trading (approve tokens) - Run this once
+await client.enableTrading();
+
+// Split position: Convert collateral tokens into outcome tokens
+// For a binary market, this gives you tokens for both YES and NO
+const splitResult = await client.split({
+  marketId: 123,
+  amount: ethers.parseUnits("100", 6), // 100 USDT (6 decimals)
+  partition: [1, 2], // Binary market outcomes
+});
+console.log("Split transaction:", splitResult.txHash);
+
+// Merge position: Convert outcome tokens back to collateral
+// You need equal amounts of all outcome tokens
+const mergeResult = await client.merge({
+  marketId: 123,
+  amount: ethers.parseUnits("50", 6),
+  partition: [1, 2],
+});
+console.log("Merge transaction:", mergeResult.txHash);
+
+// Redeem position: Claim winnings after market resolution
+const redeemResult = await client.redeem({
+  marketId: 123,
+  partition: [1, 2],
+});
+console.log("Redeem transaction:", redeemResult.txHash);
+```
+
+#### Complete Trading Workflow
+
+```typescript
+// 1. Enable trading (one-time setup)
+await client.enableTrading();
+
+// 2. Split collateral to get outcome tokens
+const splitResult = await client.split({
+  marketId: 123,
+  amount: ethers.parseUnits("100", 6), // 100 USDT
+});
+
+// 3. Trade your outcome tokens
+await client.placeOrder({
+  marketId: 123,
+  tokenId: "token_yes",
+  side: OrderSide.SELL,
+  orderType: OrderType.LIMIT_ORDER,
+  price: "0.60",
+  makerAmountInBaseToken: "50", // Sell 50 YES tokens
+});
+
+// 4. After trading, merge remaining tokens back to collateral
+await client.merge({
+  marketId: 123,
+  amount: ethers.parseUnits("50", 6),
+});
+
+// 5. After market resolution, claim your winnings
+await client.redeem({ marketId: 123 });
+```
+
+#### Error Handling for Blockchain Operations
+
+```typescript
+import {
+  BalanceNotEnoughError,
+  InsufficientGasBalanceError,
+  NoPositionsToRedeemError,
+} from "opinion-clob-sdk";
+
+try {
+  await client.split({
+    marketId: 123,
+    amount: ethers.parseUnits("1000", 6),
+  });
+} catch (error) {
+  if (error instanceof BalanceNotEnoughError) {
+    console.error("Insufficient token balance");
+  } else if (error instanceof InsufficientGasBalanceError) {
+    console.error("Insufficient BNB for gas fees");
+  } else if (error instanceof NoPositionsToRedeemError) {
+    console.error("No positions available to redeem");
+  } else {
+    console.error("Transaction failed:", error.message);
+  }
+}
+```
+
 ## Configuration
 
 ### Client Options
@@ -210,7 +315,14 @@ import {
 The SDK provides specific error types for different scenarios:
 
 ```typescript
-import { InvalidParamError, OpenApiError, ValidationError } from "opinion-clob-sdk";
+import {
+  InvalidParamError,
+  OpenApiError,
+  ValidationError,
+  BalanceNotEnoughError,
+  InsufficientGasBalanceError,
+  NoPositionsToRedeemError,
+} from "opinion-clob-sdk";
 
 try {
   const result = await client.placeOrder(orderData);
@@ -221,6 +333,12 @@ try {
     console.error("API error:", error.message);
   } else if (error instanceof ValidationError) {
     console.error("Validation error:", error.message);
+  } else if (error instanceof BalanceNotEnoughError) {
+    console.error("Insufficient balance:", error.message);
+  } else if (error instanceof InsufficientGasBalanceError) {
+    console.error("Insufficient gas:", error.message);
+  } else if (error instanceof NoPositionsToRedeemError) {
+    console.error("No positions to redeem:", error.message);
   }
 }
 ```
@@ -259,15 +377,46 @@ This TypeScript SDK maintains API compatibility with the Python SDK while follow
 - **Error Handling**: Uses try/catch with custom error classes
 - **Configuration**: Object-based configuration instead of keyword arguments
 
-## Limitations
+## Features
 
-This initial port focuses on the core CLOB API functionality. Advanced features like:
+### Complete Feature Set
 
-- Direct blockchain contract calls (split, merge, redeem)
-- Gnosis Safe integration
-- Contract approval management
+✅ **Market Data**
+- Get markets with filters and pagination
+- Get market details (binary and categorical)
+- Get orderbook data
+- Get price history and latest prices
+- Get fee rates
 
-Are planned for future releases. For now, these operations should be performed through the Python SDK or direct contract interaction.
+✅ **Trading**
+- Place limit and market orders
+- Cancel orders
+- Get order history
+- Sign orders with EIP-712
+
+✅ **User Data**
+- Get balances and positions
+- Get trade history
+- User authentication
+
+✅ **Blockchain Operations** (NEW)
+- Enable trading (token approvals)
+- Split positions (collateral → outcome tokens)
+- Merge positions (outcome tokens → collateral)
+- Redeem positions (claim winnings)
+- Gnosis Safe multi-signature support
+- Gas estimation and balance checking
+
+### Blockchain Features
+
+The SDK includes full support for direct smart contract interactions:
+
+- **Token Approval Management**: Automated approval of ERC20 tokens and conditional tokens for trading
+- **Position Management**: Split, merge, and redeem operations for outcome tokens
+- **Gnosis Safe Integration**: Multi-signature wallet support with safe transaction batching
+- **Gas Management**: Automatic gas estimation with safety margins
+- **Error Handling**: Comprehensive error handling for blockchain operations
+- **Transaction Validation**: Automatic receipt validation and status checking
 
 ## Support
 
