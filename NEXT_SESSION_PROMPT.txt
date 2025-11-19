@@ -1,0 +1,39 @@
+===========================================
+PROMPT FOR NEXT CHAT SESSION
+===========================================
+
+Hi! I need your help implementing advanced blockchain features for the Opinion CLOB TypeScript SDK.
+
+CONTEXT:
+I have successfully ported the core API functionality from the Python SDK v0.2.7 to TypeScript. The base SDK is working and handles market data, order management, and user portfolio tracking. However, the advanced blockchain features (smart contract interactions) are not yet implemented.
+
+WHAT I NEED:
+Please implement the remaining blockchain features from the Python SDK to achieve feature parity. These include:
+1. Contract Caller module for direct smart contract interactions
+2. Gnosis Safe integration for multi-sig wallets
+3. Position management (split, merge, redeem)
+4. Token approval management (enable_trading)
+5. Gas estimation and balance checking
+
+IMPORTANT FILES TO READ:
+1. IMPLEMENTATION_PROMPT.md - Contains detailed task description and acceptance criteria
+2. PRD.md - Contains comprehensive technical specifications and implementation plan
+
+REFERENCE:
+Python SDK source: https://files.pythonhosted.org/packages/07/d0/8d6e5294828aec93364d2d2148aa311edd4458de035611ab0d9608dfa62a/opinion_clob_sdk-0.2.7.tar.gz
+
+STARTING POINT:
+Please start from the main branch (or the merged initial port) and create a new branch for this work.
+
+DELIVERABLES:
+- Fully functional Contract Caller module
+- Complete Gnosis Safe integration
+- All position management features (split, merge, redeem)
+- Token approval system with caching
+- Gas estimation and balance checking
+- Updated Client class with new methods
+- Examples demonstrating all features
+- Updated README documentation
+- All code compiled and tested
+
+Please review IMPLEMENTATION_PROMPT.md and PRD.md for complete details and let me know when you're ready to start!

@@ -6,6 +6,7 @@ import { ethers } from "ethers";
 import { ApiClient, ApiResponse } from "./api/client";
 import { OrderBuilder } from "./chain/orderBuilder";
 import { Signer } from "./chain/signer";
+import { ContractCaller } from "./chain/contractCaller";
 import { OrderDataInput, PlaceOrderDataInput, OrderData } from "./models/order";
 import { OrderSide, OrderType, TopicStatus, TopicStatusFilter, TopicType, SignatureType } from "./types/enums";
 import { InvalidParamError, OpenApiError } from "./types/errors";
@@ -40,6 +41,7 @@ export class Client {
   private signer?: Signer;
   private multiSigAddr?: string;
   private provider?: ethers.JsonRpcProvider;
+  private contractCaller?: ContractCaller;
   private quoteTokensCacheTtl: number;
   private marketCacheTtl: number;
   private quoteTokensCache?: any;
@@ -67,6 +69,18 @@ export class Client {
 
     if (config.rpcUrl) {
       this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
+    }
+
+    // Initialize ContractCaller if all required parameters are provided
+    if (config.rpcUrl && config.privateKey && config.multiSigAddr) {
+      const contractAddresses = DEFAULT_CONTRACT_ADDRESSES[config.chainId];
+      this.contractCaller = new ContractCaller({
+        rpcUrl: config.rpcUrl,
+        privateKey: config.privateKey,
+        multiSigAddr: config.multiSigAddr,
+        conditionalTokensAddr: config.conditionalTokensAddr || contractAddresses.conditionalTokens,
+        multisendAddr: config.multisendAddr || contractAddresses.multisend,
+      });
     }
 
     this.quoteTokensCacheTtl = config.quoteTokensCacheTtl ?? 3600;
@@ -464,6 +478,99 @@ export class Client {
    */
   async getUserAuth(): Promise<ApiResponse> {
     return this.apiClient.getUserAuth();
+  }
+
+  // ==================== Blockchain Operations ====================
+
+  /**
+   * Enable trading by approving tokens for trading on CTF Exchange
+   */
+  async enableTrading(): Promise<{ txHash: string; safeTxHash: string } | null> {
+    if (!this.contractCaller) {
+      throw new InvalidParamError("ContractCaller not initialized. Provide rpcUrl, privateKey, and multiSigAddr in config");
+    }
+
+    // Get quote tokens
+    const quoteTokensResponse = await this.getQuoteTokens();
+    const quoteTokenList = this.parseListResponse(quoteTokensResponse, "get quote tokens");
+
+    // Build supported quote tokens map
+    const supportedQuoteTokens = new Map<string, string>();
+    for (const token of quoteTokenList) {
+      supportedQuoteTokens.set(token.quote_token_address, token.ctf_exchange_address);
+    }
+
+    return this.contractCaller.enableTrading(supportedQuoteTokens);
+  }
+
+  /**
+   * Split position: convert collateral tokens into outcome tokens
+   */
+  async split(params: {
+    marketId: number;
+    amount: bigint;
+    partition?: number[];
+  }): Promise<{ txHash: string; safeTxHash: string }> {
+    if (!this.contractCaller) {
+      throw new InvalidParamError("ContractCaller not initialized. Provide rpcUrl, privateKey, and multiSigAddr in config");
+    }
+
+    // Get market info to get collateral token and condition ID
+    const marketResponse = await this.getMarket(params.marketId);
+    const market = this.validateMarketResponse(marketResponse, "get market for split");
+
+    return this.contractCaller.split(
+      market.quote_token,
+      market.condition_id,
+      params.amount,
+      params.partition
+    );
+  }
+
+  /**
+   * Merge position: convert outcome tokens back into collateral
+   */
+  async merge(params: {
+    marketId: number;
+    amount: bigint;
+    partition?: number[];
+  }): Promise<{ txHash: string; safeTxHash: string }> {
+    if (!this.contractCaller) {
+      throw new InvalidParamError("ContractCaller not initialized. Provide rpcUrl, privateKey, and multiSigAddr in config");
+    }
+
+    // Get market info to get collateral token and condition ID
+    const marketResponse = await this.getMarket(params.marketId);
+    const market = this.validateMarketResponse(marketResponse, "get market for merge");
+
+    return this.contractCaller.merge(
+      market.quote_token,
+      market.condition_id,
+      params.amount,
+      params.partition
+    );
+  }
+
+  /**
+   * Redeem position: claim winnings after market resolution
+   */
+  async redeem(params: {
+    marketId: number;
+    partition?: number[];
+  }): Promise<{ txHash: string; safeTxHash: string }> {
+    if (!this.contractCaller) {
+      throw new InvalidParamError("ContractCaller not initialized. Provide rpcUrl, privateKey, and multiSigAddr in config");
+    }
+
+    // Get market info to get collateral token and condition ID
+    const marketResponse = await this.getMarket(params.marketId);
+    const market = this.validateMarketResponse(marketResponse, "get market for redeem");
+
+    return this.contractCaller.redeem(
+      market.quote_token,
+      market.condition_id,
+      params.partition
+    );
   }
 
   // ==================== Helper Methods ====================
